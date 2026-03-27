@@ -45,6 +45,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+app.get('/', (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Blog API is running',
+    health: '/api/health'
+  });
+});
+
 app.get('/api/health', (_req, res) => {
   res.status(200).json({ success: true, message: 'Server is running' });
 });
