@@ -13,13 +13,33 @@ import { errorHandler, notFound } from './middlewares/error.middleware';
 
 export const app = express();
 
+const allowedOrigins = [
+  env.clientUrl,
+  'http://localhost:3000',
+  'https://blog-platform-frontend-umber.vercel.app',
+  'https://blog-platform-frontend-git-main-abdullah-sayeeds-projects.vercel.app'
+].filter(Boolean);
+
+const previewPattern =
+  /^https:\/\/blog-platform-frontend-[a-z0-9-]+-abdullah-sayeeds-projects\.vercel\.app$/;
+
 app.use(helmet({ crossOriginResourcePolicy: false }));
+
 app.use(
   cors({
-    origin: env.clientUrl,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin) || previewPattern.test(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
     credentials: true
   })
 );
+
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
