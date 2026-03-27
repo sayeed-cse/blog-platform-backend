@@ -6,6 +6,7 @@ export interface IUser {
   email: string;
   password: string;
   avatar?: string;
+  avatarPublicId?: string;
   bio?: string;
 }
 
@@ -38,6 +39,10 @@ const userSchema = new Schema<IUserDocument, IUserModel>(
       select: false
     },
     avatar: {
+      type: String,
+      default: ''
+    },
+    avatarPublicId: {
       type: String,
       default: ''
     },

@@ -4,8 +4,16 @@ import { Comment } from '../models/comment.model';
 import { Post } from '../models/post.model';
 import { ApiError } from '../utils/api-error';
 import { asyncHandler } from '../utils/async-handler';
+import { uploadImageBuffer, deleteCloudinaryImageByPublicId } from '../utils/cloudinary';
 import { deleteLocalFileIfExists } from '../utils/file';
 import { createPostSchema, updatePostSchema } from '../validations/post.schema';
+
+const removePostImage = async (image?: string | null, publicId?: string | null) => {
+  if (publicId) {
+    await deleteCloudinaryImageByPublicId(publicId);
+  }
+  deleteLocalFileIfExists(image);
+};
 
 export const getPosts = asyncHandler(async (req: Request, res: Response) => {
   const page = Math.max(1, Number(req.query.page || 1));
@@ -78,14 +86,22 @@ export const createPost = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const payload = createPostSchema.parse(req.body);
-  const image = req.file ? `/uploads/${req.file.filename}` : '';
+  let image = '';
+  let imagePublicId = '';
+
+  if (req.file?.buffer) {
+    const uploaded = await uploadImageBuffer(req.file.buffer, 'blog-platform/posts');
+    image = uploaded.secure_url;
+    imagePublicId = uploaded.public_id;
+  }
 
   const post = await Post.create({
     author: req.user._id,
     title: payload.title,
     content: payload.content,
     tags: payload.tags,
-    image
+    image,
+    imagePublicId
   });
 
   const populated = await post.populate('author', 'name email avatar bio');
@@ -117,12 +133,15 @@ export const updatePost = asyncHandler(async (req: Request, res: Response) => {
   if (typeof payload.content !== 'undefined') post.content = payload.content;
   if (typeof payload.tags !== 'undefined') post.tags = payload.tags;
 
-  if (req.file) {
-    deleteLocalFileIfExists(post.image);
-    post.image = `/uploads/${req.file.filename}`;
+  if (req.file?.buffer) {
+    await removePostImage(post.image, post.imagePublicId);
+    const uploaded = await uploadImageBuffer(req.file.buffer, 'blog-platform/posts');
+    post.image = uploaded.secure_url;
+    post.imagePublicId = uploaded.public_id;
   } else if (payload.removeImage) {
-    deleteLocalFileIfExists(post.image);
+    await removePostImage(post.image, post.imagePublicId);
     post.image = '';
+    post.imagePublicId = '';
   }
 
   await post.save();
@@ -149,7 +168,7 @@ export const deletePost = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(403, 'You can only delete your own posts');
   }
 
-  deleteLocalFileIfExists(post.image);
+  await removePostImage(post.image, post.imagePublicId);
 
   await Promise.all([
     Post.findByIdAndDelete(post._id),

@@ -5,6 +5,7 @@ export interface IPost extends Document {
   title: string;
   content: string;
   image?: string;
+  imagePublicId?: string;
   tags: string[];
   createdAt: Date;
   updatedAt: Date;
@@ -28,6 +29,10 @@ const postSchema = new Schema<IPost>(
       trim: true
     },
     image: {
+      type: String,
+      default: ''
+    },
+    imagePublicId: {
       type: String,
       default: ''
     },
